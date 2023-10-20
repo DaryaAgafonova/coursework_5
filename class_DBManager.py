@@ -1,4 +1,5 @@
 import psycopg2
+from psycopg2 import extensions
 
 
 class DBManager:
@@ -17,6 +18,7 @@ class DBManager:
         self.password = password
 
 
+
     def create_database(self):
 
         """ Создание Базы Данных. """
@@ -24,16 +26,18 @@ class DBManager:
         self.connect = psycopg2.connect(
             host=self.host,
             port=self.port,
-            database=self.database,
+            database='postgres',
             user=self.user,
             password=self.password
         )
         try:
-            with self.connect:
-                with self.connect.cursor() as cursor:
-                    self.connect.autocommit = True
+            self.connect.set_isolation_level(extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+            with self.connect.cursor() as cursor:
+                cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (self.database,))
+                exists = cursor.fetchone()
+                if exists:
                     cursor.execute(f"DROP DATABASE {self.database};")
-                    cursor.execute(f"CREATE DATABASE {self.database};")
+                cursor.execute(f"CREATE DATABASE {self.database};")
         finally:
             self.connect.close()
 
@@ -93,10 +97,11 @@ class DBManager:
                     LEFT JOIN vacancies ON employers.employer_id = vacancies.employer_id
                     GROUP BY employer_name;
                     ''')
+                    result = cursor.fetchall()
         finally:
             self.connect.close()
 
-            return cursor.fetchall()
+            return result
 
 
     def get_all_vacancies(self) -> list:
@@ -118,10 +123,11 @@ class DBManager:
                     FROM vacancies
                     INNER JOIN employers ON employers.employer_id = vacancies.employer_id;
                     ''')
+                    result = cursor.fetchall()
         finally:
             self.connect.close()
 
-        return cursor.fetchall()
+        return result
 
 
     def get_avg_salary(self):
@@ -142,10 +148,11 @@ class DBManager:
                             SELECT AVG(salary) 
                             FROM vacancies;
                             ''')
+                    result = cursor.fetchall()[0]
         finally:
             self.connect.close()
 
-        return cursor.fetchall()[0]
+        return result
 
 
     def get_vacancies_with_higher_salary(self):
@@ -165,10 +172,11 @@ class DBManager:
             with self.connect:
                 with self.connect.cursor() as cursor:
                     cursor.execute('SELECT * FROM vacancies WHERE salary > %s', (avg_salary,))
+                    result = cursor.fetchall()
         finally:
             self.connect.close()
 
-        return cursor.fetchall()
+        return result
 
 
     def get_vacancies_with_keyword(self, keyword: str) -> list:
@@ -185,8 +193,9 @@ class DBManager:
         try:
             with self.connect:
                 with self.connect.cursor() as cursor:
-                    cursor.execute('SELECT * FROM vacancies WHERE vacancy_name LIKE %s', ('%' + keyword + '%'))
+                    cursor.execute('SELECT * FROM vacancies WHERE vacancy_name LIKE %s', ('%' + keyword + '%',))
+                    result = cursor.fetchall()
         finally:
             self.connect.close()
 
-        return cursor.fetchall()
+        return result
