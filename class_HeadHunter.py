@@ -11,12 +11,7 @@ class HeadHunter:
 
         self.base_url = "https://api.hh.ru/"
 
-
-    def get_requests(self):
-
-        """ """
-
-        employers = [
+        self.employers = [
             '1753496',  # ООО Бизапс
             '1795330',  # Ateuco
             '2751250',  # AdminDivision
@@ -29,17 +24,30 @@ class HeadHunter:
             '193400',  # АВТОВАЗ
         ]
 
-        for employer_id in employers:
+
+    def get_vacancies(self):
+
+        """ """
+
+        vacancies = []
+        for employer_id in self.employers:
+            vacancies_url = self.base_url + f"vacancies?employer_id={employer_id}"
+            vacancies_response = requests.get(vacancies_url)
+            vacancies_data = vacancies_response.json()['items']
+            vacancies.extend(vacancies_data)
+
+        return vacancies
+
+
+    def get_employers(self):
+
+        """ """
+
+        employers = []
+        for employer_id in self.employers:
             employer_url = self.base_url + f"employers/{employer_id}"
             employer_response = requests.get(employer_url)
             employer_data = employer_response.json()
+            employers.append(employer_data)
 
-            vacancies_url = self.base_url + f"vacancies?employer_id={employer_id}"
-            vacancies_response = requests.get(vacancies_url)
-            vacancies_data = vacancies_response.json()
-
-            #print(f"Employer: {employer_data['name']}")
-            #print("Job Vacancies:")
-            #for vacancy in vacancies_data['items']:
-            #    print(f"- {vacancy['name']}")
-            #print("==============================")
+        return employers

@@ -69,7 +69,8 @@ class DBManager:
                     vacancy_id SERIAL PRIMARY KEY,
                     employer_id INTEGER REFERENCES employers(employer_id),
                     vacancy_name VARCHAR(255) NOT NULL,
-                    salary INTEGER,
+                    salary_from INTEGER,
+                    salary_to INTEGER,
                     url_vacancy TEXT
                     );
                     ''')
@@ -104,6 +105,56 @@ class DBManager:
             return result
 
 
+    def insert_employer(self, data):
+
+        """ """
+
+        self.connect = psycopg2.connect(
+            host=self.host,
+            port=self.port,
+            database=self.database,
+            user=self.user,
+            password=self.password
+        )
+        try:
+            with self.connect:
+                with self.connect.cursor() as cursor:
+                    for employer in data:
+                        cursor.execute('''
+                        INSERT INTO employers(employer_id, employer_name) VALUES (%s, %s)
+                        ''', (employer['id'], employer['name']))
+        finally:
+            self.connect.close()
+
+
+    def insert_vacansies(self, data):
+
+        """ """
+
+        self.connect = psycopg2.connect(
+            host=self.host,
+            port=self.port,
+            database=self.database,
+            user=self.user,
+            password=self.password
+        )
+        try:
+            with self.connect:
+                with self.connect.cursor() as cursor:
+                    for vacancy in data:
+                        if vacancy['salary'] is not None:
+                            salary_from = vacancy['salary']['from'] if vacancy['salary']['from'] else 0
+                            salary_to = vacancy['salary']['to'] if vacancy['salary']['to'] else 0
+                        else:
+                            salary_from = 0
+                            salary_to = 0
+                        cursor.execute('''
+                        INSERT INTO vacancies(vacancy_id, employer_id, vacancy_name, salary_from, salary_to, url_vacancy) VALUES (%s, %s, %s, %s, %s, %s)
+                        ''', (vacancy['id'], vacancy['employer']['id'], vacancy['name'], salary_from, salary_to , vacancy['alternate_url']))
+        finally:
+            self.connect.close()
+
+
     def get_all_vacancies(self) -> list:
 
         """ Получает список всех вакансий с указанием названия компании, названия вакансии и зарплаты и ссылки на вакансию. """
@@ -119,7 +170,7 @@ class DBManager:
             with self.connect:
                 with self.connect.cursor() as cursor:
                     cursor.execute('''
-                    SELECT employers.employer_name, vacancies.vacancy_name, vacancies.salary, vacancies.url_vacancy
+                    SELECT employers.employer_name, vacancies.vacancy_name, vacancies.salary_from, vacancies.salary_to, vacancies.url_vacancy
                     FROM vacancies
                     INNER JOIN employers ON employers.employer_id = vacancies.employer_id;
                     ''')
@@ -145,7 +196,7 @@ class DBManager:
             with self.connect:
                 with self.connect.cursor() as cursor:
                     cursor.execute('''
-                            SELECT AVG(salary) 
+                            SELECT AVG((salary_from + salary_to) / 2) 
                             FROM vacancies;
                             ''')
                     result = cursor.fetchall()[0]
@@ -171,7 +222,7 @@ class DBManager:
         try:
             with self.connect:
                 with self.connect.cursor() as cursor:
-                    cursor.execute('SELECT * FROM vacancies WHERE salary > %s', (avg_salary,))
+                    cursor.execute('SELECT * FROM vacancies WHERE salary_to > %s', (avg_salary,))
                     result = cursor.fetchall()
         finally:
             self.connect.close()
